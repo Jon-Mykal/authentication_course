@@ -17,6 +17,7 @@ export default new Vuex.Store({
     LOGOUT() {
       localStorage.removeItem('user');
       // Not the most ideal since we need to persist login on refresh.
+      // Found a solution that makes this possible.
       location.reload();
     }
   },
@@ -38,11 +39,24 @@ export default new Vuex.Store({
     },
     logout ({ commit }) {
       commit('LOGOUT');
+    },
+    persistLogin({ commit, getters }) {
+      if (getters.isLoggedIn) {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        commit('SET_USER_DATA', userData);
+      }
     }
   },
   getters: {
     loggedIn(state) {
       return !!state.user;
+    },
+    isLoggedIn() {
+      const userString = localStorage.getItem('user');
+      if (userString) {
+        return true;
+      }
+      return false;
     }
   }
 })
