@@ -16,9 +16,15 @@ app.get('/', (req, res) => {
   })
 })
 
-app.get('/dashboard', (req, res) => {
-  res.json({
-    events: events
+app.get('/dashboard', verifyToken, (req, res) => { //verifyToken is middleware
+  jwt.verify(req.token, 'the_secret_key', err => { // verifies token
+    if (err) { // if error, respond with 401 code
+      res.sendStatus(401)
+    } else { // otherwise, respond with private data
+      res.json({
+        events: events
+      })
+    }
   })
 })
 
@@ -34,9 +40,17 @@ app.post('/register', (req, res) => {
     const data = JSON.stringify(user, null, 2)
     var dbUserEmail = require('./db/user.json').email
 
-    if (dbUserEmail === req.body.email) {
-      res.sendStatus(400)
-    } else {
+  	var errorsToSend = [] // array to collect errors
+    
+      if (dbUserEmail === user.email) { // check to see if email already exists in db
+        errorsToSend.push('An account with this email already exists.')
+      }
+      if (user.password.length < 5) { // validate password is in correct format
+        errorsToSend.push('Password too short.')
+      }
+      if (errorsToSend.length > 0) { // check if there are any errors
+        res.status(400).json({ errors: errorsToSend }) // send errors back with status code
+      } else {
       fs.writeFile('./db/user.json', data, err => {
         if (err) {
           console.log(err + data)
@@ -57,22 +71,21 @@ app.post('/register', (req, res) => {
 })
 
 app.post('/login', (req, res) => {
-  const userDB = fs.readFileSync('./db/user.json')
+  const userDB = fs.readFileSync('./db/user.json') // reading db
   const userInfo = JSON.parse(userDB)
-  if (
+  if ( // check if user credentials exists in db
     req.body &&
     req.body.email === userInfo.email &&
     req.body.password === userInfo.password
   ) {
     const token = jwt.sign({ userInfo }, 'the_secret_key')
-    // In a production app, you'll want the secret key to be an environment variable
     res.json({
       token,
       email: userInfo.email,
       name: userInfo.name
     })
   } else {
-    res.sendStatus(400)
+    res.status(401).json({ error: 'Invalid login. Please try again.'}) // send error if credentials don't match record
   }
 })
 
